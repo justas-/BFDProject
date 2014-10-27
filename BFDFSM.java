@@ -15,11 +15,8 @@ public class BFDFSM {
         //Session example
         BFDSession session=new BFDSession();
         SessionHandler sh=new SessionHandler();
-        sh.addSession(session);
-        
-        //
-        
-        
+        sh.addSession(session);       
+        //       
         //Time-out example
        /* TimeOut tm=new TimeOut();
         Timer t=tm.BeginTimer(5000);       
@@ -62,11 +59,7 @@ public class BFDFSM {
         msg2.setYourDiscriminator(789);
         msg2.setAuthenticationPresent(0);
         //msg2.setRequiredMinEchoRxInterval(156);
-        
-        //Check message validation
-        ValidityCheck check=new ValidityCheck();
-        System.out.println(check.ValidityCheck(msg2));
-       
+              
         //Check Listener creation
         MessageListener listener;
         listener=new MessageListener("thread1",6631);

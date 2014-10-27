@@ -7,7 +7,7 @@ package bfd.fsm;
  */
 public class BFDSession {
    
-    int SessionState,RemoteSessionState,LocalDiscr,RemoteDiscr,LocalDiag,DesiredMinTxInterval,RequiredMinRxInterval,RemoteMinRxInterval,DemandMode,RemoteDemandMode,DetectMult,AuthType;
+    int RequiredMinEchoRxInterval,SessionState,RemoteSessionState,LocalDiscr,RemoteDiscr,LocalDiag,DesiredMinTxInterval,RequiredMinRxInterval,RemoteMinRxInterval,DemandMode,RemoteDemandMode,DetectMult,AuthType;
     int sid,RemoteDetectMult;
     boolean isActive=false;
     
@@ -79,7 +79,13 @@ public class BFDSession {
     int getRequiredMinRxInterval(){
         return RequiredMinRxInterval;
     }
+    void setRequiredMinEchoRxInterval(int interval){
+        RequiredMinEchoRxInterval=interval;
+    }
     
+    int getRequiredMinEchoRxInterval(){
+        return RequiredMinEchoRxInterval;
+    }
     void setRemoteMinRxInterval(int interval){
         RemoteMinRxInterval=interval;
     }

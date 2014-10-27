@@ -43,4 +43,27 @@ public class MessageSender {
       {
       }
    }
+    public BFDmessage MessageCreator(BFDSession session){
+        BFDmessage msg=new BFDmessage();
+        msg.setVersion(1);
+        msg.setDiag(session.getLocalDiag());
+        msg.setState(session.getSessionState());
+        //Insert Poll set here
+        //Insert Final set here
+        //Insert controll plane set here
+        msg.setAuthenticationPresent(0);
+        if ((session.getSessionState()==3)&&(session.getRemoteSessionState()==3)) {
+            msg.setDemand(1);
+        }
+        else msg.setDemand(0);
+        msg.setMultipoint(0);
+        msg.setDetectMult(session.getDetectMult());
+        msg.setLength(24);
+        msg.setMyDiscriminator(session.getLocalDiscr());
+        msg.setYourDiscriminator(session.getRemoteDiscr());
+        msg.setDesiredMinTxInterval(session.getDesiredMinTxInterval());
+        msg.setRequiredMinRxInterval(session.getRequiredMinRxInterval());
+        msg.setRequiredMinEchoRxInterval(session.getRequiredMinEchoRxInterval());
+        return msg;
+    }
 }

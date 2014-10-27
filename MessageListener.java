@@ -25,7 +25,7 @@ public class MessageListener implements Runnable
     String threadName;
     String serverName = "localhost";   
     private final ServerSocket serverSocket;
-
+    SessionHandler sh=new SessionHandler();
    
    MessageListener(String name,int port) throws IOException{
        threadName = name;
@@ -78,27 +78,41 @@ public class MessageListener implements Runnable
     }
     
     public void BFDMessageRecieved(BFDmessage msg){
-        //1.Check if a session exists based on the discriminator values
-        //2.Update this session
-        SessionHandler sh=new SessionHandler();
+        //1.Check if the message is a valid BFD message
+        //2.Check if a session exists based on the discriminator values
+        //3.Update this session
+        ValidityCheck check=new ValidityCheck();
+        //If the message is valid continue with finding and 
+        //updating the session values
+       if(check.ValidityCheck(msg,sh)){
         for (int i=0; i<sh.getSessions().size();i++){
             if (convert(msg.getYourDiscriminator())==sh.getSession(i).getRemoteDiscr()){
                 if (convert(msg.getMyDiscriminator())==sh.getSession(i).getLocalDiscr()){
                     //Session found
                     BFDSession tmpSession;
                     tmpSession=sh.getSession(i);
-                    //tmpSession.setRemoteDiscr(); 
+                    
+                    //Set remote Discriminator value
+                    tmpSession.setRemoteDiscr(convert(msg.getMyDiscriminator())); 
+                    //Set remote state value
                     tmpSession.setRemoteSessionState(convert(msg.getState()));
+                    //Set remote demand mode
                     if (msg.getDemand())  tmpSession.setRemoteDemandMode(1);
                     else tmpSession.setRemoteDemandMode(0);
+                    //Set remote min rx interval
                     tmpSession.setRemoteMinRxInterval(convert(msg.getRequiredMinRxInterval()));
+                    //Cease ECHO if required min echo rx interval is zeto
                     if (convert(msg.getRequiredMinEchoRxInterval())==0){
                         //Here stop echo transmission
                     }
+                    //Terminate Poll if Poll is on in the local system  and Final has been recieved
                     if(msg.getFinal()){
                         //Check if Poll sequence is enabled and terminate
                     }
                     // UPDATE the timers
+                    
+                    
+                    //The FSM implementaion see page 35 of RFC
                     if (tmpSession.getSessionState()==0){
                         //Discard the packet
                     }
@@ -132,8 +146,9 @@ public class MessageListener implements Runnable
                     
                     //ADD
                     //Check to see if Demand mode should become active or not
-                    //
                     
+                    //Cease BFD messages if remote demand is 1 local session state is UP 
+                    //and remote session state is UP
                     if(tmpSession.getRemoteDemandMode()==1){
                         if(tmpSession.getSessionState()==3){
                             if(tmpSession.getRemoteSessionState()==3){
@@ -143,7 +158,7 @@ public class MessageListener implements Runnable
                             }
                         }
                     }
-                    
+                    //Send BFD messages if remote demand mode is 0 or local session sate is not UP or remote session state is not UP
                     if((tmpSession.getRemoteDemandMode()==0)||(tmpSession.getRemoteSessionState()!=3)||(tmpSession.getSessionState()!=3)){
                         //
                         //Local system must send periodic BFD messages
@@ -155,14 +170,11 @@ public class MessageListener implements Runnable
                         //Send  a BFD controll packet with P=0 and F=1
                         //
                     }
-                    
-                    //
-                    //IF the packet has not been discarded then UPDATE timers
-                    //
                 }
             }
         }
-        
+       } 
+         //IF the packet has not been discarded then UPDATE timers
     }
     
     //Convert from Bitset to int

@@ -15,7 +15,7 @@ import java.util.BitSet;
  */
 public class ValidityCheck {
     
-   public boolean ValidityCheck( BFDmessage msg){
+   public boolean ValidityCheck( BFDmessage msg,SessionHandler sh){
         if (convert(msg.getVersion())!=1){             
             return false;
         }
