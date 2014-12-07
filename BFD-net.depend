@@ -1,0 +1,30 @@
+# depslib dependency file v1.0
+1417963605 source:/home/justas/Documents/Programming/BFD-net/main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<unistd.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<netdb.h>
+	<poll.h>
+	<signal.h>
+	"helpers.h"
+	"main.h"
+
+1417963153 source:/home/justas/Documents/Programming/BFD-net/helpers.c
+	<poll.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<sys/socket.h>
+	<sys/types.h>
+	<unistd.h>
+	"helpers.h"
+
+1417963171 /home/justas/Documents/Programming/BFD-net/helpers.h
+
+1417961097 /home/justas/Documents/Programming/BFD-net/main.h
+
