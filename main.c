@@ -20,6 +20,8 @@ size_t localSocketDBSize = 0;
 remoteSocket *remoteSocketDB = NULL;
 size_t remoteSocketDBSize = 0;
 
+int localCommunicationSocket = 0;
+
 static void sighupHandler(int signo)
 {
     printf("SIGHUP handled");
@@ -47,6 +49,14 @@ int isListeningSocket(localSocket **localDB, size_t localDBLen, int thisSocket)
 {
     for(size_t i=0;i<localDBLen;i++){
         if((*localDB)[i].listenSocket == thisSocket) return 1;
+    }
+    return 0;
+}
+
+int isRemoteSocket(remoteSocket **remoteDB, size_t remoteDBLen, int thisSocket)
+{
+    for(size_t i=0;i<remoteDBLen;i++){
+        if((*remoteDB)[i].talkingSocket == thisSocket) return 1;
     }
     return 0;
 }
@@ -114,123 +124,150 @@ int getConnectedSocket(const char *ipaddr, int port)
 	return sock;
 }
 
-struct pollfd *handlePollEvents(int rv, struct pollfd *fdArr, size_t *numFd)
+int ForwardToBFDFSM(int socket)
+{
+    char buf[256];
+    memset(buf, 0, 256);
+    int nbytesRx = 0;
+
+    if((nbytesRx = recv(socket, buf, sizeof buf, 0)) <= 0){
+        if(nbytesRx == 0){
+            printf("Remote socket hungup POLLIN\n");
+            return -1;
+        } else {
+            perror("recv");
+        }
+    }
+    else {
+        printf("Got %d bytes from Remote client\n", nbytesRx);
+        if(localCommunicationSocket != 0)
+            sendall(localCommunicationSocket, buf, nbytesRx);
+        else
+            printf("Received data, but local BFDFSM is not connected.\n");
+    }
+    return 0;
+}
+
+int HandleRemoteData(int socket)
+{
+    char buf[256];
+    memset(buf, 0, 256);
+    int nbytesRx = 0;
+
+    if((nbytesRx = recv(socket, buf, sizeof buf, 0)) <= 0){
+        if(nbytesRx == 0){
+            printf("Remote socket hungup POLLIN\n");
+            return -1;
+        } else {
+            perror("recv");
+        }
+    }
+    else {
+        printf("Got %d bytes from Remote connection\n", nbytesRx);
+
+        // TODO:
+        //  Take note of their disc
+        //  Forward data to local client
+    }
+    return 0;
+}
+
+void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd)
 {
     printf("Events available in %d socket(s)\n", rv);
 
     size_t newNumFd = *numFd;
-    int newfd, nbytesRx, numRemovals = 0;
+    int newfd=0, numRemovals = 0;
     socklen_t addrlen;
 
     char buf[BUFSZ];
 	memset(buf, 0, BUFSZ);
 
-    // TODO: eventsProcessed check
     for(size_t curSock=0;curSock<*numFd;curSock++){
-        if(!fdArr[curSock].revents) {
+        if(!(*fdArr)[curSock].revents) {
             continue; // No event in this socket
         }
-        else if(fdArr[curSock].revents & POLLIN) {
+        else if((*fdArr)[curSock].revents & POLLIN) {
             printf("POLLIN event in socket %zu\n", curSock);
 
             if(curSock==0){
-                // This is listening socket. Accept a connection
+                // This is local listening socket.
+                // Accept a connection and take note of socket
                 printf("New POLLIN even in local listening socket\n");
-                newfd = accept(fdArr[0].fd, NULL, &addrlen);
+                newfd = accept((*fdArr)[0].fd, NULL, &addrlen);
                 if(newfd == -1){
                     perror("accept");
                 } else {
-                    fdArr[1].fd = newfd;
-                    fdArr[1].events = POLLIN;
-                }
-            }
-            else if(curSock == 1){
-                // TODO Send to required socket
-                if((nbytesRx = recv(fdArr[curSock].fd, buf, sizeof buf, 0)) <= 0){
-                    if(nbytesRx == 0){
-                        printf("Local DATA socket hungup in POLLIN\n");
-                        fdArr[curSock].fd = -1; // Mark for cleanup
-                        numRemovals++;
-                    } else {
-                        perror("recv");
-                    }
-                } else {
-                    // Actual data from client
-                    printf("Got %d bytes from local client.\n", nbytesRx);
-                    sendall(
-                        fdArr[3].fd,//fdArr[2].fd, //fdArr[curSock].fd,
-                        buf,
-                        nbytesRx
-                    );
-                    memset(buf, 0, 256);
+                    addFd(fdArr, newNumFd);
+                    (*fdArr)[newNumFd].fd = newfd;
+                    (*fdArr)[newNumFd].events = POLLIN;
+                    newNumFd++;
+                    localCommunicationSocket = newfd;
                 }
             }
             else {
-                // Non 0th or 1st socket
-                if(isListeningSocket(&localSocketDB, localSocketDBSize, fdArr[curSock].fd)){
-                    printf("New POLLIN even in listening socket\n");
-                    newfd = accept(fdArr[curSock].fd, NULL, &addrlen);
+                // Figure out what socket that has an event
+                if((*fdArr)[curSock].fd == localCommunicationSocket){
+                    // This is data from BFD State Machine
+                    // TODO:
+                    //  Receive
+                    //  Get Discs
+                    //  Check if local known -> send
+                    //  Check if remote known -> send
+                    //  Else report problem
+                }
+                else if(isListeningSocket(&localSocketDB, localSocketDBSize, (*fdArr)[curSock].fd)){
+                    // This is Connection request from local listeners
+                    printf("New POLLIN even in remote listening socket\n");
+                    newfd = accept((*fdArr)[curSock].fd, NULL, &addrlen);
                     if(newfd == -1){
                         perror("accept");
+                    } else {
+                        addFd(fdArr, newNumFd);
+                        (*fdArr)[newNumFd].fd = newfd;
+                        (*fdArr)[newNumFd].events = POLLIN;
+                        newNumFd++;
                     }
-                    else {
-                        if(addFd(&fdArr, *numFd) == 0){
-                            printf("Placed new sonnection in socket: %zu\n", newNumFd);
-                            fdArr[newNumFd].fd = newfd;
-                            fdArr[newNumFd].events = POLLIN;
-                            newNumFd++;
-                        }
-                        else{
-                            printf("Failed to increas size for new FD\n");
-                        }
+                }
+                else if(isRemoteSocket(&remoteSocketDB, remoteSocketDBSize, (*fdArr)[curSock].fd)){
+                    // This is data from outgoing connection that we made
+                    // Receive data and pass to BFD client
+                    if(ForwardToBFDFSM((*fdArr)[curSock].fd) == -1){
+                        // Socket hungup when we tried to RX data
+                        (*fdArr)[curSock].fd = -1;
+                        numRemovals++;
                     }
                 }
                 else {
-                    if((nbytesRx = recv(fdArr[curSock].fd, buf, sizeof buf, 0)) <= 0){
-                        if(nbytesRx == 0){
-                            printf("Socket %zu hungup in POLLIN\n", curSock);
-                            fdArr[curSock].fd = -1; // Mark for cleanup
-                            numRemovals++;
-                        }
-                        else {
-                            perror("recv");
-                        }
-                    }
-                    else {
-                        // Actual data from client
-                        printf("Got %d from client on socket %zu\n", nbytesRx, curSock);
-                        printf("Sending to client on 1 socket\n");
-                        sendall(
-                            fdArr[1].fd,//fdArr[2].fd, //fdArr[curSock].fd,
-                            buf,
-                            nbytesRx);
-                        memset(buf, 0, 256);
+                    // This is data from connection made to us
+                    if(HandleRemoteData((*fdArr)[curSock].fd) == -1){
+                        // Remote Socket hungup when we tried to RX data
+                        (*fdArr)[curSock].fd = -1;
+                        numRemovals++;
                     }
                 }
             }
         }
-        else if (fdArr[curSock].revents & POLLHUP) {
+        else if ((*fdArr)[curSock].revents & POLLHUP) {
             printf("POLLHUP event in socket %zu\n", curSock);
-            fdArr[curSock].fd = -1; // Mark for cleanup
+            (*fdArr)[curSock].fd = -1; // Mark for cleanup
             numRemovals++;
         }
-        else if (fdArr[curSock].revents & POLLERR) {
+        else if ((*fdArr)[curSock].revents & POLLERR) {
             printf("POLLERR event in socket %zu\n", curSock);
         }
-        else if (fdArr[curSock].revents & POLLNVAL) {
+        else if ((*fdArr)[curSock].revents & POLLNVAL) {
             printf("POLLNVAL event in socket %zu\n", curSock);
-            fdArr[curSock].fd = -1; // Mark for cleanup
+            (*fdArr)[curSock].fd = -1; // Mark for cleanup
             numRemovals++;
         }
     }
 
     if(numRemovals > 0){
-        fdArr = cleanUpFds(fdArr, &newNumFd);
+        cleanUpFds(fdArr, &newNumFd);
     }
     *numFd = newNumFd;
     printf("New number of fds: %zu\n", *numFd);
-
-    return fdArr;
 }
 
 int getListenSocket(const char *ipaddr, int port)
@@ -292,7 +329,7 @@ int getListenSocket(const char *ipaddr, int port)
 	return sock;
 }
 
-int setupLocalSockets(struct pollfd **fdArr, size_t *numFd)
+int setupLocalSocket(struct pollfd **fdArr, size_t *numFd)
 {
     const char *listenOn = "0.0.0.0";
 
@@ -310,15 +347,6 @@ int setupLocalSockets(struct pollfd **fdArr, size_t *numFd)
         (*fdArr)[0].events = POLLIN;
         (*numFd)++;
     }
-
-	if(addFd(fdArr, *numFd)) {
-        return 1;
-	}
-	else {
-        (*fdArr)[1].fd = 0;
-        (*fdArr)[1].events = 0;
-        (*numFd)++;
-	}
 
 	return 0;
 }
@@ -365,7 +393,7 @@ int main()
     struct pollfd *fdArr = NULL; // Pointer to array of pollfd structs
     size_t numFd = 0; // Number of elements in fdArr array
 
-    if(setupLocalSockets(&fdArr, &numFd) != 0) {
+    if(setupLocalSocket(&fdArr, &numFd) != 0) {
         printf("!12\n");
         return 1;
     }
@@ -375,8 +403,6 @@ int main()
         return 1;
     }
 
-
-
 	int timeout_msecs = 5000;
 
 	while(1) {
@@ -385,11 +411,14 @@ int main()
 
 		// Handle errors or timeouts
 		if(rv == -1){
-			printf("poll() error\n");
-		} else if(rv == 0){
+			printf("poll() error. Exiting.\n");
+			return 1;
+		}
+		else if(rv == 0){
 			printf("poll() timeout\n");
-		} else {
-            fdArr = handlePollEvents(rv, fdArr, &numFd);
+		}
+		else {
+            handlePollEvents(rv, &fdArr, &numFd);
 		}
 	}
 

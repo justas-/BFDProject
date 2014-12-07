@@ -8,39 +8,36 @@
 
 #include "helpers.h"
 
-struct pollfd* removeFd(struct pollfd *fds, size_t numFd, size_t removeThisFd)
+void removeFd(struct pollfd **fds, size_t numFd, size_t removeThisFd)
 {
     size_t newSz = (numFd-1) * sizeof(struct pollfd);
-    struct pollfd *fdn;
+    //struct pollfd **fdnew = NULL;
 
     if((numFd-1) == removeThisFd){
         printf("Performing edge cleanup\n");
-        if((fdn = malloc(newSz)) != NULL){
-            memcpy(fdn, fds, newSz);
+        if((*fds = realloc(*fds, newSz)) != NULL){
+            return;
         }
         else{
             printf("Unable to allocate memory in removeFd()\n");
         }
     }
-    else {
-        printf("Performing non edge cleanup\n");
-        if((fdn = malloc(newSz)) != NULL){
-            memcpy(
-                fdn,
-                fds,
-                removeThisFd * sizeof(struct pollfd));
-            memcpy(
-                &fdn[removeThisFd],
-                &fds[removeThisFd+1],
-                (numFd-removeThisFd-1) * sizeof(struct pollfd));
-        }
-        else{
-            printf("Unable to allocate memory in removeFd()\n");
-        }
-    }
-
-    free(fds);
-    return fdn;
+//    else {
+//        printf("Performing non edge cleanup\n");
+//        if((fdn = malloc(newSz)) != NULL){
+//            memcpy(
+//                fdn,
+//                fds,
+//                removeThisFd * sizeof(struct pollfd));
+//            memcpy(
+//                &fdn[removeThisFd],
+//                &fds[removeThisFd+1],
+//                (numFd-removeThisFd-1) * sizeof(struct pollfd));
+//        }
+//        else{
+//            printf("Unable to allocate memory in removeFd()\n");
+//        }
+//    }
 }
 
 int addFd(struct pollfd **fdArr, size_t currentSz)
@@ -55,23 +52,22 @@ int addFd(struct pollfd **fdArr, size_t currentSz)
     }
 }
 
-struct pollfd *cleanUpFds(struct pollfd *fdArr, size_t *currentSz)
+void cleanUpFds(struct pollfd **fdArr, size_t *currentSz)
 {
     printf("Descriptors cleanup started. Curent Sz:%zu\n", *currentSz);
 
     size_t workingSize = *currentSz;
 
     for(size_t i=0;i<workingSize;i++){
-        if(fdArr[i].fd == -1){
+        if((*fdArr)[i].fd == -1){
             printf("Cleaning up %zu element\n",i);
-            fdArr = removeFd(fdArr, workingSize, i);
+            removeFd(fdArr, workingSize, i);
             workingSize--;
             i--; // We need to recheck current element
         }
     }
 
     *currentSz = workingSize;
-    return fdArr;
 }
 
 ssize_t sendall(int socket, char *data, size_t dataLen)
@@ -218,7 +214,6 @@ int parseConfigFile(localSocket **localDB, size_t *localLen, remoteSocket **remo
     free(lineData);
     fclose(fp);
 
-    printf("Data parsed:\n");
     printLocalDB(localDB, *localLen);
     printRemoteDB(remoteDB, *remoteLen);
 
