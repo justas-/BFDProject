@@ -45,8 +45,8 @@ struct pollfd* removeFd(struct pollfd *fds, size_t numFd, size_t removeThisFd)
 
 int addFd(struct pollfd **fdArr, size_t currentSz)
 {
-    struct pollfd *pfd = realloc(*fdArr, (currentSz+1) * sizeof(struct pollfd));
-    if(pfd != NULL){
+    *fdArr = realloc(*fdArr, (currentSz+1) * sizeof(struct pollfd));
+    if(fdArr != NULL){
         return 0;
     }
     else{

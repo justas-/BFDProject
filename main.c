@@ -302,26 +302,51 @@ int setupLocalSockets(struct pollfd **fdArr, size_t *numFd)
         return 1;
     }
 
-    *fdArr = realloc(*fdArr, (*numFd+1) * sizeof(struct pollfd));
-    if(fdArr == NULL){
-        printf("Failed to allocate memory for listening socket.\n");
+    if(addFd(fdArr, *numFd) != 0){
         return 1;
     }
+    else{
+        (*fdArr)[0].fd = localListener;
+        (*fdArr)[0].events = POLLIN;
+        (*numFd)++;
+    }
 
-	(*fdArr)[0].fd = localListener;
-	(*fdArr)[0].events = POLLIN;
-	(*numFd)++;
-
-	addFd(fdArr, *numFd);
-	(*fdArr)[1].fd = 0;
-	(*fdArr)[1].events = 0;
-	(*numFd)++;
+	if(addFd(fdArr, *numFd)) {
+        return 1;
+	}
+	else {
+        (*fdArr)[1].fd = 0;
+        (*fdArr)[1].events = 0;
+        (*numFd)++;
+	}
 
 	return 0;
 }
 
 int setupListeningSockets(struct pollfd **fdArr, size_t *numFd)
 {
+    int sockNum = 0;
+    for(size_t i=0;i<localSocketDBSize;++i){
+        sockNum = getListenSocket(
+            localSocketDB[i].ipAddr,
+            localSocketDB[i].port);
+
+        if(sockNum == -1){
+            printf("Unable to start listening.\n");
+            return 1;
+        }
+
+        localSocketDB[i].listenSocket = sockNum;
+
+        if(addFd(fdArr, *numFd) != 0){
+            return 1;
+        }
+        else{
+            (*fdArr)[*numFd].fd = sockNum;
+            (*fdArr)[*numFd].events = POLLIN;
+            (*numFd)++;
+        }
+    }
     return 0;
 }
 
@@ -339,30 +364,18 @@ int main()
 
     struct pollfd *fdArr = NULL; // Pointer to array of pollfd structs
     size_t numFd = 0; // Number of elements in fdArr array
-    setupLocalSockets(&fdArr, &numFd);
 
-//    int sockNum = 0;
-//    for(size_t i=0;i<localSocketDBSize;i++){
-//        sockNum = getListenSocket(
-//            localSocketDB[i].ipAddr,
-//            localSocketDB[i].port);
-//
-//        if(sockNum == -1){
-//            printf("Unable to start listening. Continuing.\n");
-//            continue;
-//        }
-//
-//        localSocketDB[i].listenSocket = sockNum;
-//
-//        if(addFd(fdArr, numFd) != NULL){
-//            fdArr[numFd].fd = sockNum;
-//            fdArr[numFd].events = POLLIN;
-//            numFd++;
-//        }
-//        else{
-//            printf("Failed to increas size for new FD\n");
-//        }
-//    }
+    if(setupLocalSockets(&fdArr, &numFd) != 0) {
+        printf("!12\n");
+        return 1;
+    }
+
+    if(setupListeningSockets(&fdArr, &numFd) != 0) {
+        printf("!23\n");
+        return 1;
+    }
+
+
 
 	int timeout_msecs = 5000;
 
