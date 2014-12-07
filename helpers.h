@@ -23,3 +23,4 @@ void printRemoteDB(remoteSocket **remoteDB, size_t remoteDBLen);
 int parseConfigFile(localSocket **localDB, size_t *localLen, remoteSocket **remoteDB, size_t *remoteLen);
 void savePID();
 void getDiscFromPkg(char *data, unsigned long *myDisc, unsigned long *theirDisc);
+void printFdArr(struct pollfd **fdArr, size_t numFd);

@@ -8,10 +8,17 @@
 
 #include "helpers.h"
 
+void printFdArr(struct pollfd **fdArr, size_t numFd)
+{
+    for(size_t i=0; i<numFd; ++i)
+        printf("fdArr[%zu] => %d\n",
+            i,
+            (*fdArr)[i].fd);
+}
+
 void removeFd(struct pollfd **fds, size_t numFd, size_t removeThisFd)
 {
     size_t newSz = (numFd-1) * sizeof(struct pollfd);
-    //struct pollfd **fdnew = NULL;
 
     if((numFd-1) == removeThisFd){
         printf("Performing edge cleanup\n");
@@ -22,22 +29,24 @@ void removeFd(struct pollfd **fds, size_t numFd, size_t removeThisFd)
             printf("Unable to allocate memory in removeFd()\n");
         }
     }
-//    else {
-//        printf("Performing non edge cleanup\n");
-//        if((fdn = malloc(newSz)) != NULL){
-//            memcpy(
-//                fdn,
-//                fds,
-//                removeThisFd * sizeof(struct pollfd));
-//            memcpy(
-//                &fdn[removeThisFd],
-//                &fds[removeThisFd+1],
-//                (numFd-removeThisFd-1) * sizeof(struct pollfd));
-//        }
-//        else{
-//            printf("Unable to allocate memory in removeFd()\n");
-//        }
-//    }
+    else {
+        printf("Performing non edge cleanup\n");
+        struct pollfd *fdnew = malloc(newSz);
+        if(fdnew != NULL){
+            memcpy(
+                fdnew,
+                *fds,
+                removeThisFd * sizeof(struct pollfd));
+            memcpy(
+                &fdnew[removeThisFd],
+                &(*fds)[removeThisFd+1],
+                (numFd-removeThisFd-1) * sizeof(struct pollfd));
+            *fds = fdnew;
+        }
+        else{
+            printf("Unable to allocate memory in removeFd()\n");
+        }
+    }
 }
 
 int addFd(struct pollfd **fdArr, size_t currentSz)

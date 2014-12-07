@@ -203,6 +203,7 @@ void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd)
                     (*fdArr)[newNumFd].events = POLLIN;
                     newNumFd++;
                     localCommunicationSocket = newfd;
+                    // TODO: Make remote connections
                 }
             }
             else {
@@ -407,6 +408,7 @@ int main()
 
 	while(1) {
         printf("Waiting for events in %zu sockets\n", numFd);
+        printFdArr(&fdArr, numFd);
 		int rv = poll(fdArr, numFd, timeout_msecs);
 
 		// Handle errors or timeouts
