@@ -19,6 +19,8 @@ localSocket *localSocketDB = NULL;
 size_t localSocketDBSize = 0;
 remoteSocket *remoteSocketDB = NULL;
 size_t remoteSocketDBSize = 0;
+remoteSocket *remoteSessionsDB = NULL;
+size_t remoteSessionsDBSize = 0;
 
 int localCommunicationSocket = 0;
 
@@ -43,6 +45,22 @@ void setupSignalHandlers()
     if (signal(SIGINT, sigintHandler) == SIG_ERR) {
         printf("An error occurred while setting a SIGHUP signal handler.\n");
     }
+}
+
+int SocketFromOurDisc(remoteSocket **remoteDB, size_t remoteDBLen, unsigned long ourDisc)
+{
+    for(size_t i=0;i<remoteDBLen;i++){
+        if((*remoteDB)[i].ourDisc == ourDisc) return (*remoteDB)[i].talkingSocket;
+    }
+    return 0;
+}
+
+int SocketFromTheirDisc(remoteSocket **remoteDB, size_t remoteDBLen, unsigned long theirDisc)
+{
+    for(size_t i=0;i<remoteDBLen;i++){
+        if((*remoteDB)[i].theirDisc == theirDisc) return (*remoteDB)[i].talkingSocket;
+    }
+    return 0;
 }
 
 int isListeningSocket(localSocket **localDB, size_t localDBLen, int thisSocket)
@@ -165,9 +183,76 @@ int HandleRemoteData(int socket)
     else {
         printf("Got %d bytes from Remote connection\n", nbytesRx);
 
-        // TODO:
-        //  Take note of their disc
-        //  Forward data to local client
+        if (localCommunicationSocket != 0){
+            unsigned long myDisc = 0;
+            unsigned long theirDisc = 0;
+
+            getDiscFromPkg(buf, &myDisc, &theirDisc);
+
+            printf("Received Pkg: MyDisc: %lu; TheirDisc: %lu;\n",
+                myDisc,
+                theirDisc);
+
+            if(addRemoteEntry(&remoteSessionsDB, &remoteSessionsDBSize) != 0){
+                printf("HandleRemoteData() failed allocating memory.\n");
+            }
+            else{
+                remoteSessionsDB[remoteSessionsDBSize-1].theirDisc = theirDisc;
+                remoteSessionsDB[remoteSessionsDBSize-1].talkingSocket = socket;
+
+                sendall(localCommunicationSocket, buf, nbytesRx);
+            }
+        }
+        else {
+            printf("Got data, but BFDFSM is not connected.\n");
+        }
+    }
+    return 0;
+}
+
+int HandleFSMData(int socket)
+{
+    char buf[256];
+    memset(buf, 0, 256);
+    int nbytesRx = 0;
+
+    // Get the data
+    if((nbytesRx = recv(socket, buf, sizeof buf, 0)) <= 0){
+        if(nbytesRx == 0){
+            printf("FSM socket hungup in POLLIN\n");
+            return -1;
+        } else {
+            perror("recv");
+        }
+    }
+    else{
+        unsigned long myDisc = 0;
+        unsigned long theirDisc = 0;
+
+        getDiscFromPkg(buf, &myDisc, &theirDisc);
+
+        printf("Received FSM Pkg: MyDisc: %lu; TheirDisc: %lu;\n",
+            myDisc,
+            theirDisc);
+
+        int destSock = 0;
+        if((destSock = SocketFromOurDisc(
+            &remoteSocketDB,
+            remoteSocketDBSize,
+            myDisc))!= 0){
+            // This is our initiated connection
+            sendall(destSock, buf, nbytesRx);
+        }
+        else if((destSock = SocketFromTheirDisc(
+            &remoteSessionsDB,
+            remoteSessionsDBSize,
+            myDisc))!= 0){
+            // This is our initiated connection
+            sendall(destSock, buf, nbytesRx);
+        }
+        else{
+            printf("Got data from FSM but couldn't find matching disc\n");
+        }
     }
     return 0;
 }
@@ -209,13 +294,13 @@ void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd)
             else {
                 // Figure out what socket that has an event
                 if((*fdArr)[curSock].fd == localCommunicationSocket){
-                    // This is data from BFD State Machine
-                    // TODO:
-                    //  Receive
-                    //  Get Discs
-                    //  Check if local known -> send
-                    //  Check if remote known -> send
-                    //  Else report problem
+                    // This is data from FSM
+                    if(HandleFSMData((*fdArr)[curSock].fd) == -1){
+                        // FSM Hung up. Not big deal
+                        (*fdArr)[curSock].fd = -1;
+                        numRemovals++;
+                        localCommunicationSocket = 0;
+                    }
                 }
                 else if(isListeningSocket(&localSocketDB, localSocketDBSize, (*fdArr)[curSock].fd)){
                     // This is Connection request from local listeners

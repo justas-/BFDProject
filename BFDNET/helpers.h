@@ -24,3 +24,4 @@ int parseConfigFile(localSocket **localDB, size_t *localLen, remoteSocket **remo
 void savePID();
 void getDiscFromPkg(char *data, unsigned long *myDisc, unsigned long *theirDisc);
 void printFdArr(struct pollfd **fdArr, size_t numFd);
+int addRemoteEntry(remoteSocket **remDB, size_t *remDbLen);

@@ -248,3 +248,15 @@ void getDiscFromPkg(char *data, unsigned long *myDisc, unsigned long *theirDisc)
     *myDisc = data[4] | (data[5] << 8) | (data[6] << 16) | (data[7] << 24);
     *theirDisc = data[8] | (data[9] << 8) | (data[10] << 16) | (data[11] << 24);
 }
+
+int addRemoteEntry(remoteSocket **remDB, size_t *remDbLen)
+{
+    if((*remDB = realloc(*remDB, (*remDbLen+1) * sizeof(struct connectAddr))) != NULL){
+        *remDbLen = *remDbLen+1;
+        return 0;
+    }
+    else {
+        printf("realloc() failed in addRemoteEntry()\n");
+        return 1;
+    }
+}
