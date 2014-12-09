@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <netinet/in.h>
 #include <unistd.h>
 
 #include "helpers.h"
@@ -245,8 +246,10 @@ void savePID()
 
 void getDiscFromPkg(char *data, unsigned long *myDisc, unsigned long *theirDisc)
 {
-    *myDisc = data[4] | (data[5] << 8) | (data[6] << 16) | (data[7] << 24);
-    *theirDisc = data[8] | (data[9] << 8) | (data[10] << 16) | (data[11] << 24);
+    long md = data[4] | (data[5] << 8) | (data[6] << 16) | (data[7] << 24);
+    *myDisc = ntohl(md);
+    long td = data[8] | (data[9] << 8) | (data[10] << 16) | (data[11] << 24);
+    *theirDisc = ntohl(td);
 }
 
 int addRemoteEntry(remoteSocket **remDB, size_t *remDbLen)

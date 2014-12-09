@@ -28,3 +28,33 @@
 
 1417973449 /home/justas/Documents/Programming/BFD-net/main.h
 
+1418127522 source:/home/justas/Documents/Programming/BFD-net/BFDNET/helpers.c
+	<poll.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<sys/socket.h>
+	<sys/types.h>
+	<netinet/in.h>
+	<unistd.h>
+	"helpers.h"
+
+1418069853 /home/justas/Documents/Programming/BFD-net/BFDNET/helpers.h
+
+1418128867 source:/home/justas/Documents/Programming/BFD-net/BFDNET/main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<unistd.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<netdb.h>
+	<poll.h>
+	<signal.h>
+	"helpers.h"
+	"main.h"
+
+1417973449 /home/justas/Documents/Programming/BFD-net/BFDNET/main.h
+

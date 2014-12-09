@@ -197,7 +197,7 @@ int HandleRemoteData(int socket)
                 printf("HandleRemoteData() failed allocating memory.\n");
             }
             else{
-                remoteSessionsDB[remoteSessionsDBSize-1].theirDisc = theirDisc;
+                remoteSessionsDB[remoteSessionsDBSize-1].theirDisc = myDisc;
                 remoteSessionsDB[remoteSessionsDBSize-1].talkingSocket = socket;
 
                 sendall(localCommunicationSocket, buf, nbytesRx);
@@ -241,13 +241,15 @@ int HandleFSMData(int socket)
             remoteSocketDBSize,
             myDisc))!= 0){
             // This is our initiated connection
+            printf("Found Disc by OurDisc\n");
             sendall(destSock, buf, nbytesRx);
         }
         else if((destSock = SocketFromTheirDisc(
             &remoteSessionsDB,
             remoteSessionsDBSize,
-            myDisc))!= 0){
+            theirDisc))!= 0){
             // This is our initiated connection
+            printf("Found Disc by TheirDisc\n");
             sendall(destSock, buf, nbytesRx);
         }
         else{
@@ -255,6 +257,27 @@ int HandleFSMData(int socket)
         }
     }
     return 0;
+}
+
+int makeRemoteConnections(struct pollfd **fdArr, size_t *numFd)
+{
+    int numCreated = 0;
+    for(size_t i = 0; i<remoteSocketDBSize; i++)
+    {
+        int sock = getConnectedSocket(
+            remoteSocketDB[i].ipAddr,
+            remoteSocketDB[i].port);
+
+        if(sock != -1){
+            remoteSocketDB[i].talkingSocket = sock;
+            addFd(fdArr, *numFd);
+            (*fdArr)[*numFd].fd = sock;
+            (*fdArr)[*numFd].events = POLLIN;
+            *numFd = *numFd + 1;
+            numCreated++;
+        }
+    }
+    return numCreated;
 }
 
 void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd)
@@ -288,7 +311,9 @@ void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd)
                     (*fdArr)[newNumFd].events = POLLIN;
                     newNumFd++;
                     localCommunicationSocket = newfd;
-                    // TODO: Make remote connections
+                    printf("Making remote connections.\n");
+                    int conMade = makeRemoteConnections(fdArr, &newNumFd);
+                    printf("Made %d new connections\n", conMade);
                 }
             }
             else {
