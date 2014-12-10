@@ -21,12 +21,34 @@ remoteSocket *remoteSocketDB = NULL;
 size_t remoteSocketDBSize = 0;
 remoteSocket *remoteSessionsDB = NULL;
 size_t remoteSessionsDBSize = 0;
+struct pollfd *fdArray = NULL;
+size_t numInFdArray = 0;
 
 int localCommunicationSocket = 0;
 
 static void sighupHandler(int signo)
 {
     printf("SIGHUP handled");
+
+    for(size_t i=0; i<remoteSessionsDBSize; i++){
+        int sock = remoteSocketDB[0].talkingSocket;
+        close(sock);
+
+        for(size_t k = 0; k<numInFdArray; k++){
+            if(fdArray[k].fd == sock){
+                fdArray[k].fd = -1;
+                fdArray[k].events = 0;
+            }
+        }
+    }
+
+    parseConfigFile(
+        &localSocketDB,
+        &localSocketDBSize,
+        &remoteSocketDB,
+        &remoteSocketDBSize);
+
+    makeRemoteConnections(&fdArray, &numInFdArray);
 }
 
 static void sigintHandler(int signo)
@@ -501,15 +523,14 @@ int main()
 
     savePID();
 
-    struct pollfd *fdArr = NULL; // Pointer to array of pollfd structs
-    size_t numFd = 0; // Number of elements in fdArr array
 
-    if(setupLocalSocket(&fdArr, &numFd) != 0) {
+
+    if(setupLocalSocket(&fdArray, &numInFdArray) != 0) {
         printf("!12\n");
         return 1;
     }
 
-    if(setupListeningSockets(&fdArr, &numFd) != 0) {
+    if(setupListeningSockets(&fdArray, &numInFdArray) != 0) {
         printf("!23\n");
         return 1;
     }
@@ -517,20 +538,20 @@ int main()
 	int timeout_msecs = 5000;
 
 	while(1) {
-        printf("Waiting for events in %zu sockets\n", numFd);
-        printFdArr(&fdArr, numFd);
-		int rv = poll(fdArr, numFd, timeout_msecs);
+        printf("Waiting for events in %zu sockets\n", numInFdArray);
+        printFdArr(&fdArray, numInFdArray);
+		int rv = poll(fdArray, numInFdArray, timeout_msecs);
 
 		// Handle errors or timeouts
 		if(rv == -1){
-			printf("poll() error. Exiting.\n");
-			return 1;
+			printf("poll() error!\n");
+			//return 1;
 		}
 		else if(rv == 0){
 			printf("poll() timeout\n");
 		}
 		else {
-            handlePollEvents(rv, &fdArr, &numFd);
+            handlePollEvents(rv, &fdArray, &numInFdArray);
 		}
 	}
 

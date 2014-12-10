@@ -10,5 +10,6 @@ int getConnectedSocket(const char *ipaddr, int port);
 void handlePollEvents(int rv, struct pollfd **fdArr, size_t *numFd);
 int getListenSocket(const char *ipaddr, int port);
 int setupLocalSocket(struct pollfd **fdArr, size_t *numFd);
+int makeRemoteConnections(struct pollfd **fdArr, size_t *numFd);
 
 #endif // MAIN_H_INCLUDED
