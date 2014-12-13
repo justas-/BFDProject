@@ -31,7 +31,7 @@ static void sighupHandler(int signo)
     printf("SIGHUP handled");
 
     for(size_t i=0; i<remoteSessionsDBSize; i++){
-        int sock = remoteSocketDB[0].talkingSocket;
+        int sock = remoteSocketDB[i].talkingSocket;
         close(sock);
 
         for(size_t k = 0; k<numInFdArray; k++){
@@ -41,6 +41,10 @@ static void sighupHandler(int signo)
             }
         }
     }
+
+    free(remoteSocketDB);
+    remoteSocketDB = NULL;
+    remoteSocketDBSize = 0;
 
     parseConfigFile(
         &localSocketDB,

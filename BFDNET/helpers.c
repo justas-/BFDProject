@@ -213,10 +213,16 @@ int parseConfigFile(localSocket **localDB, size_t *localLen, remoteSocket **remo
     ssize_t lineLen;
 
     while((lineLen = getline(&lineData, &len, fp)) != -1){
-        if(lineData[0] == 'L')
-            processLocalLine(&lineData, lineLen, localDB, localLen);
-        else if(lineData[0] == 'R')
-            processRemoteLine(&lineData, lineLen, remoteDB, remoteLen);
+        if(lineData[0] == 'L'){
+
+                processLocalLine(&lineData, lineLen, localDB, localLen);
+
+        }
+        else if(lineData[0] == 'R'){
+
+                processRemoteLine(&lineData, lineLen, remoteDB, remoteLen);
+
+        }
         else
             printf("Unrecognized line!\n");
     }
