@@ -59,6 +59,11 @@ static void sigintHandler(int signo)
 {
     printf("SIGINT handled");
     unlink("net.pid");
+    
+    for(size_t i=0; i<numInFdArray;i++){
+    	close(fdArray[i].fd);
+    }
+    
     exit(0);
 }
 
